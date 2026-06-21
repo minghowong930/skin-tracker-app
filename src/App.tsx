@@ -240,7 +240,7 @@ function App() {
     const elements: ReactNode[] = [];
     let keyCounter = 0;
 
-    lines.forEach((line, index) => {
+    lines.forEach((line) => {
       // Main section headers (###)
       if (line.startsWith('### ')) {
         const title = line.replace('### ', '').trim();
