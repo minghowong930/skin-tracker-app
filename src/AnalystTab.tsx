@@ -4,6 +4,8 @@ import { supabase } from './lib/supabaseClient'
 export default function AnalystTab() {
   const [isGeneratingReport, setIsGeneratingReport] = useState(false)
   const [analystReport, setAnalystReport] = useState<string | null>(null)
+  const [reasoningText, setReasoningText] = useState<string | null>(null) // 儲存 AI 內心戲
+  const [showReasoning, setShowReasoning] = useState(false) // 控制折疊狀態
 
   const formatReport = (text: string) => {
     if (!text) return null;
@@ -93,10 +95,11 @@ export default function AnalystTab() {
   const generateReport = async () => {
     setIsGeneratingReport(true)
     setAnalystReport(null)
+    setReasoningText(null)
+    setShowReasoning(false)
     try {
       const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
       
-      // 1. 獲取原始數據 (加入睡眠數據以供 AI 交叉比對)
       const { data: logs } = await supabase
         .from('daily_logs')
         .select('log_date, am_subjective_score, pm_subjective_score, sleep_hours, sleep_quality')
@@ -114,7 +117,6 @@ export default function AnalystTab() {
         return
       }
 
-      // 2. 數學模型：計算時間滯後效應 (Time-Lag Impact)
       const uniqueTags = Array.from(new Set(habits?.map(h => h.tag_name) || []))
       const lagDays = [1, 2, 3]
       const insights: string[] = []
@@ -159,7 +161,6 @@ export default function AnalystTab() {
         ? insights.join('\n') 
         : '目前數據中尚未發現顯著的數學滯後效應 (Impact > 0.8)。'
 
-      // 3. 重構每日時間線 (讓 AI 更容易看懂組合與累積效應)
       const timeline = logs.map(log => {
         const date = log.log_date
         const dayHabits = habits?.filter(h => h.event_date === date).map(h => h.tag_name) || []
@@ -167,7 +168,6 @@ export default function AnalystTab() {
         return `${date}: 習慣 [${habitsStr}] | 睡眠 ${log.sleep_hours}h (品質 ${log.sleep_quality}) | 分數: AM ${log.am_subjective_score || '-'}, PM ${log.pm_subjective_score || '-'}`
       }).join('\n')
 
-      // 4. 頂級 System Prompt (雙軌融合：數學鐵證 + AI 洞察)
       const prompt = `你是一位頂尖的皮膚數據分析師。你的任務是基於提供的 14 天「每日時間線」與預先計算的「數學顯著差異」，提煉出最具價值的「證據信號」。
 
 【分析原則】
@@ -206,7 +206,7 @@ ${mathSummary}
 【每日時間線 (Daily Timeline)】
 ${timeline}`
 
-      // 5. 呼叫 DeepSeek (V4 Pro 自動路由)
+      // CTO 終極升級：呼叫 DeepSeek V4 Pro + Thinking Mode
       const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -216,14 +216,22 @@ ${timeline}`
         body: JSON.stringify({
           model: 'deepseek-v4-pro', 
           messages: [{ role: 'user', content: prompt }],
+          reasoning_effort: 'high', // 設定高強度思考
+          thinking: { type: 'enabled' }, // 開啟思維鏈
           stream: false
         })
       })
 
       if (response.ok) {
         const data = await response.json()
-        const reportText = data.choices?.[0]?.message?.content || 'No insights generated.'
+        const msg = data.choices?.[0]?.message
+        
+        // 嚴格分離最終報告與內心戲
+        const reportText = msg?.content || 'No insights generated.'
+        const reasoning = msg?.reasoning_content || ''
+        
         setAnalystReport(reportText)
+        setReasoningText(reasoning)
       } else {
         setAnalystReport('Failed to generate report. Please check your API key.')
       }
@@ -236,22 +244,47 @@ ${timeline}`
   }
 
   return (
-    <div className="pt-4">
+    <div className="pt-4 pb-24">
       <h1 className="text-3xl font-semibold text-apple-text mb-8 text-center">Skin Analyst</h1>
       <div className="bg-white rounded-apple shadow-apple p-6 mb-6">
-        <p className="text-apple-gray text-sm mb-4">Analyze your past 14 days of habits and skin scores to discover hidden triggers and time-lag effects.</p>
+        <p className="text-apple-gray text-sm mb-4">啟動 V4 Pro 深度推理引擎，分析過去 14 天的數據，找出隱藏的觸發因子與時間滯後效應。</p>
         <button 
           onClick={generateReport}
           disabled={isGeneratingReport}
           className="w-full bg-gray-800 text-white py-3 rounded-apple font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
         >
-          {isGeneratingReport ? 'Analyzing Data...' : 'Generate 14-Day Insight Report'}
+          {isGeneratingReport ? 'Deep Thinking (約 10-15 秒)...' : 'Generate 14-Day Insight Report'}
         </button>
       </div>
 
       {analystReport && (
         <div className="bg-white rounded-apple shadow-apple p-6">
+          {/* 主報告渲染 */}
           {formatReport(analystReport)}
+
+          {/* CTO 設計：可折疊的 AI 思考鏈 (Collapsible Reasoning Box) */}
+          {reasoningText && (
+            <div className="mt-8 pt-6 border-t border-gray-100">
+              <button
+                onClick={() => setShowReasoning(!showReasoning)}
+                className="flex items-center gap-2 text-apple-blue font-medium text-sm hover:opacity-80 transition-opacity mb-3"
+              >
+                <span>{showReasoning ? '🔽' : '▶️'}</span>
+                <span>{showReasoning ? '隱藏 AI 推理過程' : '🔍 查看 AI 推理過程 (Chain of Thought)'}</span>
+              </button>
+              
+              {showReasoning && (
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-apple max-h-96 overflow-y-auto">
+                  <div className="flex items-center gap-2 mb-3 text-apple-gray text-xs font-semibold uppercase tracking-wider">
+                    <span>🧠</span> AI 內部沙盤推演日誌
+                  </div>
+                  <pre className="whitespace-pre-wrap text-xs text-apple-gray font-mono leading-relaxed">
+                    {reasoningText}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
