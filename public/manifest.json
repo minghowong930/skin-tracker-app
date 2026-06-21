@@ -1,0 +1,17 @@
+{
+  "name": "Skin Tracker",
+  "short_name": "SkinTracker",
+  "description": "Daily habit tracking for skin health",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F2F2F7",
+  "theme_color": "#007AFF",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
