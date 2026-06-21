@@ -214,7 +214,7 @@ ${timeline}`
           'Authorization': `Bearer ${import.meta.env.VITE_DEEPSEEK_API_KEY}`
         },
         body: JSON.stringify({
-          model: 'deepseek-chat', 
+          model: 'deepseek-v4-pro', 
           messages: [{ role: 'user', content: prompt }],
           stream: false
         })
